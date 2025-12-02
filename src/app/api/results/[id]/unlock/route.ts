@@ -6,14 +6,17 @@ import type { Database } from "@/lib/supabase/types"
 type EvaluationRow = Database["public"]["Tables"]["evaluations"]["Row"]
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
-    const supabase = getSupabaseServerClient()
+    // FIX: Await params here too
+    const { id } = await params
+
+    const supabase = await getSupabaseServerClient()
     const {
       data: { user },
       error: userError,
@@ -30,13 +33,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = user.id
-
+    // Since evaluations table doesn't have user_id, we should ideally verify ownership via tasks join.
+    // However, for the update, we can rely on the RLS policy "Allow update for task owners" 
+    // which we added earlier.
     const { data, error } = await supabase
       .from("evaluations")
       .update({ is_paid: true })
-      .eq("id", params.id)
-      .eq("user_id", userId)
+      .eq("id", id)
+      // Note: RLS will ensure the user owns the task linked to this evaluation
       .select("id, is_paid")
       .single<EvaluationRow>()
 

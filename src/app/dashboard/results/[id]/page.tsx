@@ -6,6 +6,90 @@ import { CheckCircle2, AlertTriangle, Unlock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { UnlockReportButton } from "@/components/payment/UnlockReportButton"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+// import { getSupabaseServerClient } from "@/lib/supabase/server"
+import type { Database } from "@/lib/supabase/types"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+
+type EvaluationRow = Database["public"]["Tables"]["evaluations"]["Row"]
+type TaskRow = Database["public"]["Tables"]["tasks"]["Row"]
+
+type RouteContext = {
+  params: Promise<{
+    id: string
+  }>
+}
+
+export async function GET(request: NextRequest, context: RouteContext) {
+  try {
+    // FIX: Await params in Next.js 15+
+    const params = await context.params
+    
+    
+    const {
+      data: { user },
+      error: userError,
+    } = await getSupabaseBrowserClient().auth.getUser()
+
+    if (userError) {
+      console.error("Auth error:", userError)
+      return NextResponse.json(
+        { error: "Failed to authenticate", details: userError.message },
+        { status: 401 }
+      )
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userId = user.id
+
+    const { data, error } = await getSupabaseBrowserClient().from("evaluations")
+      .select("id, task_id, user_id, created_at, is_paid, result, tasks(title)")
+      .eq("id", params.id)
+      .eq("user_id", userId)
+      .single<EvaluationRow>()
+
+    if (error || !data) {
+      console.error("Evaluation fetch error:", error)
+      return NextResponse.json(
+        { error: "Evaluation not found", details: error?.message },
+        { status: 404 }
+      )
+    }
+
+    const row = data as any
+    const result = (row.result ?? {}) as {
+      score?: number
+      summary?: string
+      recommendations?: string[]
+    }
+
+    const payload = {
+      id: row.id as EvaluationRow["id"],
+      createdAt: row.created_at as EvaluationRow["created_at"],
+      isPaid: (row.is_paid as EvaluationRow["is_paid"]) ?? false,
+      taskTitle: (row.tasks as Pick<TaskRow, "title"> | null)?.title ?? "Untitled task",
+      score: typeof result.score === "number" ? result.score : null,
+      summary:
+        typeof result.summary === "string" ? result.summary : "No summary available.",
+      recommendations: Array.isArray(result.recommendations)
+        ? result.recommendations.filter((r): r is string => typeof r === "string")
+        : [],
+    }
+
+    return NextResponse.json(payload)
+  } catch (error) {
+    console.error("Result [id] API error:", error)
+    const message = error instanceof Error ? error.message : "Unexpected error"
+    return NextResponse.json(
+      { error: "Internal Server Error", details: message },
+      { status: 500 }
+    )
+  }
+}
 
 interface EvaluationResult {
   id: string
@@ -194,13 +278,13 @@ export default function ResultPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-200/80">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-180/80">
             Evaluation result
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-emerald-180/80">
             {data.taskTitle}
           </h1>
-          <p className="mt-1 text-xs text-slate-300/80">
+          <p className="mt-1 text-xs font-semibold text-emerald-300/90">
             Generated on {createdAt.toLocaleString()}
           </p>
         </div>
@@ -244,7 +328,7 @@ export default function ResultPage() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 Strengths
               </CardTitle>
-              <CardDescription className="text-xs text-emerald-100/80">
+              <CardDescription className="text-xs text-white/80">
                 What you already did well when defining this task.
               </CardDescription>
             </CardHeader>
@@ -264,7 +348,7 @@ export default function ResultPage() {
                 <AlertTriangle className="h-4 w-4 text-amber-400" />
                 Improvements
               </CardTitle>
-              <CardDescription className="text-xs text-amber-50/80">
+              <CardDescription className="text-xs text-white/80">
                 Top opportunities to tighten up this task.
               </CardDescription>
             </CardHeader>

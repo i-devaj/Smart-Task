@@ -1,3 +1,11 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export type Database = {
   public: {
     Tables: {
@@ -6,87 +14,117 @@ export type Database = {
           id: string
           user_id: string
           title: string
-          description: string
-          code: string | null
+          description: string | null
+          code: string
+          status: string | null
           created_at: string
         }
         Insert: {
           id?: string
           user_id: string
           title: string
-          description: string
-          code?: string | null
+          description?: string | null
+          code: string
+          status?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           title?: string
-          description?: string
-          code?: string | null
+          description?: string | null
+          code?: string
+          status?: string | null
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       },
       evaluations: {
         Row: {
           id: string
           task_id: string
-          user_id: string
-          result: unknown
-          created_at: string
+          score: number | null
+          strengths: Json | null
+          improvements: Json | null
+          full_reports: string | null
           is_paid: boolean | null
+          created_at: string
         }
         Insert: {
           id?: string
           task_id: string
-          user_id: string
-          result: unknown
-          created_at?: string
+          score?: number | null
+          strengths?: Json | null
+          improvements?: Json | null
+          full_reports?: string | null
           is_paid?: boolean | null
+          created_at?: string
         }
         Update: {
           id?: string
           task_id?: string
-          user_id?: string
-          result?: unknown
-          created_at?: string
+          score?: number | null
+          strengths?: Json | null
+          improvements?: Json | null
+          full_reports?: string | null
           is_paid?: boolean | null
+          created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "evaluations_task_id_fkey"
+            columns: ["task_id"]
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          }
+        ]
       },
       payments: {
         Row: {
           id: string
-          evaluation_id: string
           user_id: string
-          amount: number
-          currency: string
-          status: string
-          provider_session_id: string | null
+          evaluation_id: string
+          amount: number | null
+          status: string | null
           created_at: string
         }
         Insert: {
           id?: string
-          evaluation_id: string
           user_id: string
-          amount: number
-          currency: string
-          status?: string
-          provider_session_id?: string | null
+          evaluation_id: string
+          amount?: number | null
+          status?: string | null
           created_at?: string
         }
         Update: {
           id?: string
-          evaluation_id?: string
           user_id?: string
-          amount?: number
-          currency?: string
-          status?: string
-          provider_session_id?: string | null
+          evaluation_id?: string
+          amount?: number | null
+          status?: string | null
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payments_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            referencedRelation: "evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: Record<string, never>
@@ -94,6 +132,3 @@ export type Database = {
     Enums: Record<string, never>
   }
 }
-
-
-

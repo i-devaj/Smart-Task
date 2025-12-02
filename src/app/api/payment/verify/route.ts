@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const { paymentId, success } = parsed.data
 
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const {
       data: { user },
       error: userError,
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
 
     const userId = user.id
 
+    // 1. Fetch the payment to verify ownership
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .select("*")
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
 
     const newStatus = success ? "success" : "failed"
 
+    // 2. Update payment status
     const { data: updatedPayment, error: updateError } = await supabase
       .from("payments")
       .update({ status: newStatus })
@@ -81,16 +83,20 @@ export async function POST(request: NextRequest) {
 
     let evaluation: EvaluationRow | null = null
 
+    // 3. If successful, unlock the evaluation
     if (success) {
+      // We do NOT check .eq("user_id", userId) here because evaluations table has no user_id.
+      // Instead, we rely on the RLS policy "Allow update for task owners" that we added earlier.
+      // That policy checks if auth.uid() matches the tasks.user_id.
       const { data: evaluationRow, error: evaluationError } = await supabase
         .from("evaluations")
         .update({ is_paid: true })
         .eq("id", updatedPayment.evaluation_id)
-        .eq("user_id", userId)
-        .select("id, task_id, user_id, result, created_at, is_paid")
+        .select("id, task_id, score, strengths, improvements, full_reports, created_at, is_paid") // Select only valid columns
         .single<EvaluationRow>()
 
       if (evaluationError || !evaluationRow) {
+        console.error("Unlock Error:", evaluationError)
         return NextResponse.json(
           {
             error: "Payment verified but failed to unlock evaluation",

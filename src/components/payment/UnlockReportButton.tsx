@@ -162,7 +162,7 @@ export function UnlockReportButton({ evaluationId, isPaid, onUnlocked }: UnlockR
 
                 <Button
                   size="sm"
-                  className="h-8 min-w-[120px] rounded-full bg-emerald-500 px-4 text-[11px] font-semibold text-slate-950 shadow-[0_10px_30px_rgba(16,185,129,0.5)] hover:bg-emerald-400 disabled:opacity-80"
+                  className="h-8 min-w-[120px] rounded-full bg-emerald-500 px-4 text-[11px] font-semibold text-white/95 shadow-[0_10px_30px_rgba(16,185,129,0.5)] hover:bg-emerald-400 disabled:opacity-80"
                   onClick={handleConfirm}
                   disabled={isBusy}
                 >

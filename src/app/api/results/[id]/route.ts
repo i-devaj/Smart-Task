@@ -3,41 +3,42 @@ import type { NextRequest } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/types"
 
-type EvaluationRow = Database["public"]["Tables"]["evaluations"]["Row"]
-type TaskRow = Database["public"]["Tables"]["tasks"]["Row"]
-
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
-    const supabase = getSupabaseServerClient()
+    // FIX: Await params before accessing .id
+    const { id } = await params
+    
+    const supabase = await getSupabaseServerClient()
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser()
 
-    if (userError) {
-      return NextResponse.json(
-        { error: "Failed to read user", details: userError.message },
-        { status: 500 }
-      )
-    }
-
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = user.id
-
+    // Join 'tasks' to verify ownership
     const { data, error } = await supabase
       .from("evaluations")
-      .select("id, task_id, user_id, created_at, is_paid, result, tasks(title)")
-      .eq("id", params.id)
-      .eq("user_id", userId)
+      .select(`
+        id,
+        created_at,
+        is_paid,
+        score,
+        strengths,
+        improvements,
+        full_reports,
+        tasks!inner ( title, user_id )
+      `)
+      .eq("id", id)
+      .eq("tasks.user_id", user.id)
       .single()
 
     if (error || !data) {
@@ -48,22 +49,20 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     const row = data as any
-    const result = (row.result ?? {}) as {
-      score?: number
-      summary?: string
-      recommendations?: string[]
-    }
+    const task = row.tasks as { title: string }
 
     const payload = {
-      id: row.id as EvaluationRow["id"],
-      createdAt: row.created_at as EvaluationRow["created_at"],
-      isPaid: (row.is_paid as EvaluationRow["is_paid"]) ?? false,
-      taskTitle: (row.tasks as Pick<TaskRow, "title"> | null)?.title ?? "Untitled task",
-      score: typeof result.score === "number" ? result.score : null,
-      summary:
-        typeof result.summary === "string" ? result.summary : "No summary available.",
-      recommendations: Array.isArray(result.recommendations)
-        ? result.recommendations.filter((r): r is string => typeof r === "string")
+      id: row.id,
+      createdAt: row.created_at,
+      isPaid: row.is_paid ?? false,
+      taskTitle: task.title ?? "Untitled task",
+      score: row.score,
+      summary: row.full_reports ?? "No summary available.",
+      recommendations: Array.isArray(row.improvements)
+        ? row.improvements.map((r: any) => String(r))
+        : [],
+      strengths: Array.isArray(row.strengths)
+        ? row.strengths.map((r: any) => String(r))
         : [],
     }
 

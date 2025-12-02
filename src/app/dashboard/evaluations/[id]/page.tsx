@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,28 +9,35 @@ type EvaluationRow = Database["public"]["Tables"]["evaluations"]["Row"]
 type TaskRow = Database["public"]["Tables"]["tasks"]["Row"]
 
 type PageProps = {
-  params: {
-    id: string
+  context: {
+    params: Promise<{
+      id: string
+    }>
   }
 }
 
-export default async function EvaluationResultPage({ params }: PageProps) {
-  const supabase = getSupabaseServerClient()
+export default async function EvaluationResultPage({ context }: PageProps) {
+  const { id } = await context.params
+  const supabase = await getSupabaseServerClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  if (!session) {
-    // Dashboard layout should already handle auth, but guard just in case
-    notFound()
+  if (userError) {
+    return <div>Error: {userError.message}</div>
   }
 
-  const userId = session.user.id
+  if (!user) {
+    redirect("/login")
+  }
+
+  const userId = user.id
 
   const { data: evaluation, error: evaluationError } = await supabase
     .from("evaluations")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", userId)
     .single<EvaluationRow>()
 
@@ -48,17 +55,11 @@ export default async function EvaluationResultPage({ params }: PageProps) {
     notFound()
   }
 
-  const result = (evaluation.result ?? {}) as {
-    score?: number
-    summary?: string
-    recommendations?: string[]
-  }
+  const result = (evaluation.full_reports ?? "") as string
 
-  const score = typeof result.score === "number" ? result.score : undefined
-  const summary = typeof result.summary === "string" ? result.summary : "No summary available."
-  const recommendations = Array.isArray(result.recommendations)
-    ? result.recommendations.filter((r): r is string => typeof r === "string")
-    : []
+  const score = evaluation.score
+  const summary = JSON.stringify(evaluation.strengths)
+  const recommendations = JSON.stringify(evaluation.improvements)
 
   const createdAt = new Date(evaluation.created_at)
 
@@ -131,17 +132,9 @@ export default async function EvaluationResultPage({ params }: PageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {recommendations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No structured recommendations were returned.
-            </p>
-          ) : (
-            <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              {recommendations.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ol>
-          )}
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+            <li>{recommendations}</li>
+          </ol>
         </CardContent>
       </Card>
     </div>

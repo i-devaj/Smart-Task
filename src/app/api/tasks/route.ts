@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const { title, description, code } = parsed.data
 
-    const supabase = getSupabaseServerClient()
+    const supabase = await getSupabaseServerClient()
     const {
       data: { user },
       error: userError,
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         title,
         description,
-        code: code ?? null,
+        code: code ?? "",
       })
       .select("id")
       .single()
