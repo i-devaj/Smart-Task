@@ -15,22 +15,22 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const supabase = getSupabaseServerClient()
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
-    if (sessionError) {
+    if (userError) {
       return NextResponse.json(
-        { error: "Failed to read session", details: sessionError.message },
+        { error: "Failed to read user", details: userError.message },
         { status: 500 }
       )
     }
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     const { data, error } = await supabase
       .from("evaluations")

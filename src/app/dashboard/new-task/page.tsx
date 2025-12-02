@@ -159,7 +159,9 @@ export default function NewTaskPage() {
                   <div className="rounded-md border border-border/60 bg-muted/40">
                     <CodeEditor
                       value={field.value ?? ""}
-                      onChange={field.onChange}
+                      onChange={(val: string) =>
+                        field.onChange({ target: { name: field.name, value: val } })
+                      }
                       language="typescript"
                       height="260px"
                     />

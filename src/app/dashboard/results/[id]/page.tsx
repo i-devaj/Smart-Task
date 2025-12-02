@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { CheckCircle2, AlertTriangle, Lock, Unlock, Loader2 } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Unlock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { UnlockReportButton } from "@/components/payment/UnlockReportButton"
 
 interface EvaluationResult {
   id: string
@@ -124,7 +125,6 @@ function ScoreGauge({ score }: { score: number | null }) {
 export default function ResultPage() {
   const router = useRouter()
   const { state, error, data, setData } = useEvaluationResult()
-  const [isUnlocking, setIsUnlocking] = useState(false)
 
   const isLoading = state === "loading"
 
@@ -161,29 +161,6 @@ export default function ResultPage() {
       "Clarify edge cases or constraints the implementer should keep in mind.",
     ]
   }, [data])
-
-  async function handleUnlock() {
-    if (!data || data.isPaid || isUnlocking) return
-
-    setIsUnlocking(true)
-    try {
-      const response = await fetch(`/api/results/${data.id}/unlock`, {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        const json = await response.json().catch(() => null)
-        throw new Error(json?.error ?? "Failed to unlock report")
-      }
-
-      setData((prev) => (prev ? { ...prev, isPaid: true } : prev))
-    } catch (error) {
-      console.error(error)
-      alert("Could not unlock the report. Please try again.")
-    } finally {
-      setIsUnlocking(false)
-    }
-  }
 
   if (isLoading && !data) {
     return (
@@ -349,26 +326,13 @@ export default function ResultPage() {
               </div>
             ) : (
               <>
-                <Button
-                  size="sm"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 text-xs font-semibold text-slate-950 shadow-[0_12px_30px_rgba(16,185,129,0.45)] hover:from-emerald-400 hover:to-cyan-400"
-                  onClick={handleUnlock}
-                  disabled={isUnlocking}
-                >
-                  {isUnlocking ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Processing…
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-3 w-3" />
-                      Unlock full report 
-                      <span className="ml-1 text-[11px] font-semibold">Rs 99</span>
-                    </>
-                  )}
-                </Button>
-
+                <UnlockReportButton
+                  evaluationId={data.id}
+                  isPaid={data.isPaid}
+                  onUnlocked={() =>
+                    setData((prev) => (prev ? { ...prev, isPaid: true } : prev))
+                  }
+                />
                 <p className="text-[10px] text-slate-300/80">
                   No subscription. Unlock this report only.
                 </p>

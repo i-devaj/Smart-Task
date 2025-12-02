@@ -54,6 +54,39 @@ export type Database = {
           is_paid?: boolean | null
         }
         Relationships: []
+      },
+      payments: {
+        Row: {
+          id: string
+          evaluation_id: string
+          user_id: string
+          amount: number
+          currency: string
+          status: string
+          provider_session_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          evaluation_id: string
+          user_id: string
+          amount: number
+          currency: string
+          status?: string
+          provider_session_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          evaluation_id?: string
+          user_id?: string
+          amount?: number
+          currency?: string
+          status?: string
+          provider_session_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
       }
     }
     Views: Record<string, never>

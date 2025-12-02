@@ -10,14 +10,14 @@ export default async function DashboardLayout({
 }) {
   const supabase = getSupabaseServerClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/login")
   }
 
-  return <DashboardShell userEmail={session.user.email ?? null}>{children}</DashboardShell>
+  return <DashboardShell userEmail={user.email ?? null}>{children}</DashboardShell>
 }
 
 
