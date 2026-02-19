@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("Failed to update task status:", updateError)
-      // We don't return an error here because the evaluation was successful
+      
     }
 
     return NextResponse.json({ id: evaluationRow.id }, { status: 201 })

@@ -14,15 +14,9 @@ export default async function DashboardLayout({
     error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError) {
-    return <div>Error: {userError.message}</div>
-  }
-
-  if (!user) {
+  if (userError || !user) {
     redirect("/login")
   }
 
   return <DashboardShell userEmail={user.email ?? null}>{children}</DashboardShell>
 }
-
-
